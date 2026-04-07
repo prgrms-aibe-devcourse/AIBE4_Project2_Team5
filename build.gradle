@@ -65,6 +65,7 @@ dependencies {
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -94,6 +95,10 @@ def generated = 'src/main/generated'
 // Querydsl QClass 파일 생성 위치를 지정
 tasks.withType(JavaCompile).configureEach {
     options.getGeneratedSourceOutputDirectory().set(file(generated))
+}
+
+tasks.named('compileJava') {
+    inputs.files(tasks.named('processResources'))
 }
 
 // java source set 에 Querydsl QClass 위치 추가
