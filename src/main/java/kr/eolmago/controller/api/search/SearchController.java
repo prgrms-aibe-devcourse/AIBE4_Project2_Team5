@@ -18,7 +18,7 @@ import java.util.UUID;
 @RequestMapping("/api/search")
 @Tag(name = "Search", description = "검색 부가 기능 API")
 @RequiredArgsConstructor
-public class SearchApiController {
+public class SearchController {
 
     private final SearchKeywordService searchKeywordService;
 

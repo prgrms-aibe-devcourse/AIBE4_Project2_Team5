@@ -26,7 +26,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/chat")
-public class ChatApiController {
+public class ChatController {
 
 	private final ChatService chatService;
 	private final ChatValidator chatValidator;

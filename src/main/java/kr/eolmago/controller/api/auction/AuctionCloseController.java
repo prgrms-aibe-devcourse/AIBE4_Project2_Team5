@@ -21,7 +21,7 @@ import java.util.UUID;
 @Tag(name = "AuctionClose", description = "경매 마감")
 
 @RequiredArgsConstructor
-public class AuctionCloseApiController {
+public class AuctionCloseController {
 
     private final AuctionCloseService auctionCloseService;
 

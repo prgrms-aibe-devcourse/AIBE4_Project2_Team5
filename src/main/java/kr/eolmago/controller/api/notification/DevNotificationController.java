@@ -22,7 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Profile({"local", "dev"})
 @RequestMapping("/api/dev/notifications")
-public class DevNotificationApiController {
+public class DevNotificationController {
 
 	private final NotificationPublisher notificationPublisher;
 
