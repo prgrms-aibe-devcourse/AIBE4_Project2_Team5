@@ -23,8 +23,8 @@ public class JwtService {
 
     public JwtService(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-expiry}") long accessTokenExpiry,
-            @Value("${jwt.refresh-token-expiry}") long refreshTokenExpiry
+            @Value("${jwt.access-token-expiry:90000}") long accessTokenExpiry,
+            @Value("${jwt.refresh-token-expiry:604800000}") long refreshTokenExpiry
     ) {
         this.accessTokenExpiry = accessTokenExpiry;
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

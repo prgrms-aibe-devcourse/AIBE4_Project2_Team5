@@ -111,7 +111,7 @@ auction:
       sweep-batch-size: 100
 
 jwt:
-  secret: ${JWT_SECRET:dev-secret-key-for-local-development-only-minimum-256-bits-required}
+  secret: ${JWT_SECRET}
   access-token-expiry: ${JWT_ACCESS_EXPIRY:90000}
   refresh-token-expiry: ${JWT_REFRESH_EXPIRY:604800000}
 
@@ -119,7 +119,7 @@ supabase:
   url: ${SUPABASE_URL:}
   anon-key: ${SUPABASE_ANON_KEY:}
   service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
-  bucket: ${SUPABASE_BUCKET:eolmago}
+  bucket: eolmago
 
 coolsms:
   apiKey: ${COOLSMS_API_KEY:}
