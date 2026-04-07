@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://${DEV_DB_HOST:localhost}:${DEV_DB_PORT:5432}/${DEV_DB_NAME:eolmago}
-    username: ${DEV_DB_USERNAME:eolmago}
-    password: ${DEV_DB_PASSWORD:eolmago}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -17,11 +17,11 @@ spring:
 
   data:
     redis:
-      host: ${DEV_REDIS_HOST:localhost}
-      port: ${DEV_REDIS_PORT:6379}
-      password: ${DEV_REDIS_PASSWORD:}
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES}
+      password: ${REDIS_PASSWORD:}
       ssl:
-        enabled: false
+        enabled: true
       timeout: 5s
 
 logging:
