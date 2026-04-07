@@ -22,7 +22,7 @@ import java.util.UUID;
 @RequestMapping("/api/auctions")
 @Tag(name = "Bid", description = "입찰")
 @RequiredArgsConstructor
-public class BidApiController {
+public class BidController {
 
     private final BidService bidService;
     private final BidListService bidListService;

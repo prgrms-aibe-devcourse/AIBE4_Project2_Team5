@@ -27,7 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin", description = "관리자 전용 API")
-public class AdminApiController {
+public class AdminController {
 
     private final AdminService adminService;
 

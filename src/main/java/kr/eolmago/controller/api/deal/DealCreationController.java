@@ -23,7 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/deals")
 @RequiredArgsConstructor
-public class DealCreationApiController {
+public class DealCreationController {
 
     private final DealCreationService dealCreationService;
     private final DealPdfService pdfService;

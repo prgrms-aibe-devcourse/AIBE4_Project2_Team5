@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequestMapping("/api/auctions")
 @Tag(name = "Auction", description = "경매")
 @RequiredArgsConstructor
-public class AuctionApiController {
+public class AuctionController {
 
     private final AuctionService auctionService;
     private final AuctionSearchService auctionSearchService;
@@ -80,8 +80,7 @@ public class AuctionApiController {
         auctionService.deleteAuction(auctionId, sellerId);
         return ResponseEntity.noContent().build();
     }
-
-
+    
     @Operation(summary = "경매 게시")
     @PostMapping("/{auctionId}/publish")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

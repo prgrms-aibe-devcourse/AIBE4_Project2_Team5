@@ -3,6 +3,7 @@ package kr.eolmago.service.deal;
 import kr.eolmago.global.config.SupabaseConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -10,6 +11,7 @@ import org.springframework.web.client.RestTemplate;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnBean(SupabaseConfig.class)
 public class DealPdfStorageService {
 
     private final SupabaseConfig supabaseConfig;
