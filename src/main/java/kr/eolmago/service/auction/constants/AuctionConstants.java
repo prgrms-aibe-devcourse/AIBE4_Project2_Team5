@@ -12,8 +12,6 @@ public final class AuctionConstants {
 
     // 입찰
     public static final int MAX_BID_AMOUNT = 10_000_000; // 입찰 금액 상한
-    public static final int SWEEP_PAGE_SIZE = 500;
-    public static final long RESULT_WAIT_POLL_MS = 50L;
 
     // ==== 검색 ====
     // Trigram 유사도 임계값

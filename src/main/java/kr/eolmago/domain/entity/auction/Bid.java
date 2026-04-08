@@ -30,7 +30,8 @@ public class Bid extends CreatedAtEntity {
     private int amount;
 
     // 중복 입찰 방지 - 요청 고유번호
-    @Column(nullable = false, length = 64, unique = true)
+    // (bidder_id, client_request_id) 복합 unique 제약으로 멱등성 보장
+    @Column(name = "client_request_id", nullable = false, length = 64)
     private String clientRequestId;
 
     public static Bid create(

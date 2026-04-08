@@ -7,8 +7,10 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import kr.eolmago.domain.entity.auction.Auction;
+import kr.eolmago.global.config.properties.AuctionRuntimeProperties;
 import kr.eolmago.domain.entity.auction.QAuction;
 import kr.eolmago.domain.entity.auction.enums.AuctionStatus;
 import kr.eolmago.domain.entity.auction.enums.ItemCategory;
@@ -38,6 +40,8 @@ import static kr.eolmago.domain.entity.user.QUserProfile.userProfile;
 public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
+    private final AuctionRuntimeProperties auctionRuntimeProperties;
+    private final EntityManager entityManager;
 
     // 경매 목록 조회
     @Override
@@ -164,8 +168,15 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
         return Optional.ofNullable(result);
     }
 
+    /**
+     * 비관적 쓰기 락으로 경매를 조회한다.
+     * PostgreSQL lock_timeout 을 매우 짧게 두어 동일 경매 입찰이 길게 줄 서지 않도록 한다.
+     * 먼저 락을 잡은 요청이 임계구역을 통과하고, 뒤 요청은 짧게 대기한 뒤 timeout 으로 빠르게 실패한다.
+     */
     @Override
     public Optional<Auction> findByIdForUpdate(UUID auctionId) {
+        applyLocalLockTimeout(auctionRuntimeProperties.getBid().getLockTimeoutMs());
+
         Auction result = queryFactory
                 .selectFrom(auction)
                 .where(auction.auctionId.eq(auctionId))
@@ -173,6 +184,12 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .fetchOne();
 
         return Optional.ofNullable(result);
+    }
+
+
+    private void applyLocalLockTimeout(int lockTimeoutMs) {
+        int sanitized = Math.max(lockTimeoutMs, 0);
+        entityManager.createNativeQuery("SET LOCAL lock_timeout = '" + sanitized + "ms'").executeUpdate();
     }
 
     @Override
