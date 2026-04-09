@@ -2,7 +2,9 @@ package kr.eolmago.service.auction;
 
 import kr.eolmago.domain.entity.auction.enums.AuctionStatus;
 import kr.eolmago.dto.view.auction.AuctionEndAtView;
+import kr.eolmago.global.config.properties.AuctionRuntimeProperties;
 import kr.eolmago.repository.auction.AuctionCloseRepository;
+import kr.eolmago.service.auction.metrics.AuctionCloseMetricsRecorder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -22,31 +24,27 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static kr.eolmago.service.auction.constants.AuctionConstants.*;
-
-@Slf4j
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class AuctionCloseScheduler {
 
     private final TaskScheduler taskScheduler;
     private final AuctionCloseService auctionCloseService;
     private final AuctionCloseRepository auctionCloseRepository;
+    private final AuctionRuntimeProperties auctionRuntimeProperties;
+    private final AuctionCloseMetricsRecorder auctionCloseMetricsRecorder;
 
     private final AtomicLong tokenSeq = new AtomicLong(0);
     private final ConcurrentMap<UUID, ScheduledRef> scheduled = new ConcurrentHashMap<>();
 
     public void scheduleOrReschedule(UUID auctionId, OffsetDateTime endAt) {
-        if (auctionId == null || endAt == null) return;
-
-        long token = tokenSeq.incrementAndGet();
-
-        Instant runAt = endAt.toInstant();
-        Instant now = Instant.now();
-        if (runAt.isBefore(now)) {
-            runAt = now;
+        if (auctionId == null || endAt == null) {
+            return;
         }
 
+        long token = tokenSeq.incrementAndGet();
+        Instant runAt = normalizeRunAt(endAt);
         ScheduledRef newRef = new ScheduledRef(token);
 
         ScheduledRef prev = scheduled.put(auctionId, newRef);
@@ -55,24 +53,74 @@ public class AuctionCloseScheduler {
         }
 
         try {
-            ScheduledFuture<?> future = taskScheduler.schedule(() -> runCloseSafely(auctionId, token), runAt);
 
-            if (future == null) {
-                scheduled.computeIfPresent(auctionId, (id, ref) -> ref.token == token ? null : ref);
-                log.warn("[AUC_CLOSE_SCH_NULL] 경매 마감 스케줄 등록 실패(null). auctionId={}, runAt={}", auctionId, runAt);
-                return;
-            }
-
-            newRef.future = future;
+            newRef.future = taskScheduler.schedule(() -> runCloseSafely(auctionId, token), runAt);
+            auctionCloseMetricsRecorder.recordScheduleRegistration(prev == null ? "registered" : "rescheduled");
 
         } catch (TaskRejectedException e) {
             scheduled.computeIfPresent(auctionId, (id, ref) -> ref.token == token ? null : ref);
-            log.warn("[AUC_CLOSE_SCH_REJECTED] 경매 마감 스케줄 등록 거절. auctionId={}, runAt={}, cause={}",
-                    auctionId, runAt, e.toString());
+            auctionCloseMetricsRecorder.recordScheduleRegistration("rejected");
+            log.warn("[AUC_CLOSE_SCHEDULE_REJECTED] auctionId={}, runAt={}", auctionId, runAt, e);
+
         } catch (RuntimeException e) {
+
             scheduled.computeIfPresent(auctionId, (id, ref) -> ref.token == token ? null : ref);
-            log.error("[AUC_CLOSE_SCH_ERROR] 경매 마감 스케줄 등록 오류. auctionId={}, runAt={}, cause={}",
-                    auctionId, runAt, e.toString());
+            auctionCloseMetricsRecorder.recordScheduleRegistration("failed");
+            log.error("[AUC_CLOSE_SCHEDULE_ERROR] auctionId={}, runAt={}", auctionId, runAt, e);
+
+        }
+    }
+
+    // 서버 재기동 후 마감 예약이 사라지는 문제를 막기 위한 bootstrap 루트
+    @EventListener(ApplicationReadyEvent.class)
+    public void bootstrapOnStartup() {
+        try {
+            List<AuctionEndAtView> lives = auctionCloseRepository.findAllEndAtByStatus(AuctionStatus.LIVE);
+
+            int count = 0;
+            for (AuctionEndAtView view : lives) {
+                if (view.auctionId() == null || view.endAt() == null) {
+                    continue;
+                }
+                scheduleOrReschedule(view.auctionId(), view.endAt());
+                count++;
+            }
+            auctionCloseMetricsRecorder.recordBootstrapRegistration(count);
+            log.info("[AUC_CLOSE_BOOTSTRAP] scheduledCount={}", count);
+        } catch (Exception e) {
+            log.error("[AUC_CLOSE_BOOTSTRAP_ERROR]", e);
+        }
+    }
+
+    // 놓친 마감을 주기적으로 복구하는 sweep 루트
+    // 스케줄 등록 실패 및 예외 상황 대비
+    @Scheduled(fixedDelayString = "${auction.runtime.scheduler.sweep-delay-ms:60000}")
+    public void sweepOverdueAuctions() {
+        try {
+            OffsetDateTime now = OffsetDateTime.now();
+            List<UUID> ids = auctionCloseRepository.findIdsToClose(
+                AuctionStatus.LIVE,
+                now,
+                PageRequest.of(0, auctionRuntimeProperties.getScheduler().getSweepBatchSize())
+            );
+
+            if (ids.isEmpty()) {
+                return;
+            }
+
+            int recovered = 0;
+            for (UUID id : ids) {
+                try {
+                    auctionCloseService.closeAuction(id);
+                    recovered++;
+                } catch (Exception e) {
+                    log.error("[AUC_CLOSE_SWEEP_ITEM_ERROR] auctionId={}", id, e);
+                }
+            }
+            auctionCloseMetricsRecorder.recordOverdueRecovery(recovered);
+            log.info("[AUC_CLOSE_SWEEP] scanned={}, recovered={}", ids.size(), recovered);
+        } catch (Exception e) {
+            log.error("[AUC_CLOSE_SWEEP_ERROR]", e);
         }
     }
 
@@ -80,56 +128,17 @@ public class AuctionCloseScheduler {
         try {
             auctionCloseService.closeAuction(auctionId);
         } catch (Exception e) {
-            log.error("경매 마감 실행 실패. auctionId={}, token={}", auctionId, token, e);
+            log.error("[AUC_CLOSE_RUN_ERROR] auctionId={}, token={}", auctionId, token, e);
         } finally {
             scheduled.computeIfPresent(auctionId, (id, ref) -> ref.token == token ? null : ref);
         }
     }
 
-    // 서버 재시작 시 LIVE 경매들의 endAt을 다시 스케줄에 등록
-    @EventListener(ApplicationReadyEvent.class)
-    public void bootstrapOnStartup() {
-        try {
-            List<AuctionEndAtView> lives = auctionCloseRepository.findAllEndAtByStatus(AuctionStatus.LIVE);
-
-            int count = 0;
-            for (AuctionEndAtView v : lives) {
-                if (v.auctionId() == null || v.endAt() == null) continue;
-                scheduleOrReschedule(v.auctionId(), v.endAt());
-                count++;
-            }
-            log.info("경매 마감 부트스트랩 완료. scheduledCount={}", count);
-        } catch (Exception e) {
-            log.error("경매 마감 부트스트랩 실패.", e);
-        }
-    }
-
-    // endAt <= now 인 LIVE를 주기적으로 마감
-    @Scheduled(fixedDelay = 60000)
-    public void sweepOverdueAuctions() {
-        try {
-            OffsetDateTime now = OffsetDateTime.now();
-
-            List<UUID> ids = auctionCloseRepository.findIdsToClose(
-                    AuctionStatus.LIVE,
-                    now,
-                    PageRequest.of(0, SWEEP_PAGE_SIZE)
-            );
-
-            if (ids.isEmpty()) return;
-
-            log.info("경매 마감 스위프 시작. count={}", ids.size());
-
-            for (UUID id : ids) {
-                try {
-                    auctionCloseService.closeAuction(id);
-                } catch (Exception e) {
-                    log.error("경매 마감 스위프 개별 실패. auctionId={}", id, e);
-                }
-            }
-        } catch (Exception e) {
-            log.error("경매 마감 스위프 실행 중 오류.", e);
-        }
+    // endAt이 과거면 바로 지금 실행되도록 보정
+    private Instant normalizeRunAt(OffsetDateTime endAt) {
+        Instant runAt = endAt.toInstant();
+        Instant now = Instant.now();
+        return runAt.isBefore(now) ? now : runAt;
     }
 
     private static final class ScheduledRef {
