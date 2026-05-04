@@ -4,12 +4,6 @@
 경매와 거래 진행 상황을 알림으로 실시간 추적하고, 중요한 업데이트를 즉시 확인할 수 있습니다.<br>
 낙찰 후에는 1:1 채팅방에서 판매자와 바로 소통하고, 거래를 안전하게 마무리할 수 있습니다.
 
-| | |
-| --- | --- |
-| <img src="https://lpjncdsaqnkfjnhadodz.supabase.co/storage/v1/object/public/eolmago/view/home.png" width="100%" alt="홈 화면" /> | <img src="https://lpjncdsaqnkfjnhadodz.supabase.co/storage/v1/object/public/eolmago/view/detail.png" width="100%" alt="경매 상세 화면" /> |
-
-<p align="center"><i>홈 / 경매 상세 화면</i></p>
-
 <br>
 
 ## 기술 스택
