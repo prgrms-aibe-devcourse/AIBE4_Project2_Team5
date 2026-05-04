@@ -6,8 +6,8 @@ import kr.eolmago.dto.api.auction.response.BidCreateResponse;
 import kr.eolmago.global.exception.BusinessException;
 import kr.eolmago.global.exception.ErrorCode;
 import kr.eolmago.repository.auction.BidRepository;
-import kr.eolmago.service.auction.metrics.BidMetricsRecorder;
-import kr.eolmago.service.auction.observability.AuctionBidAuditLogger;
+import kr.eolmago.service.auction.monitoring.BidMetricsRecorder;
+import kr.eolmago.service.auction.monitoring.AuctionBidAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

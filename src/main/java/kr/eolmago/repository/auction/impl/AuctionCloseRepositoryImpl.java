@@ -2,8 +2,10 @@ package kr.eolmago.repository.auction.impl;
 
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import kr.eolmago.domain.entity.auction.Auction;
+import kr.eolmago.global.config.properties.AuctionRuntimeProperties;
 import kr.eolmago.domain.entity.auction.enums.AuctionStatus;
 import kr.eolmago.dto.view.auction.AuctionEndAtView;
 import kr.eolmago.repository.auction.AuctionCloseRepositoryCustom;
@@ -23,10 +25,14 @@ import static kr.eolmago.domain.entity.auction.QAuction.auction;
 public class AuctionCloseRepositoryImpl implements AuctionCloseRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
+    private final AuctionRuntimeProperties auctionRuntimeProperties;
+    private final EntityManager entityManager;
 
     // 경매 조회(비관적 락 사용)
     @Override
     public Optional<Auction> findByIdForUpdate(UUID auctionId) {
+        applyLocalLockTimeout(auctionRuntimeProperties.getClose().getLockTimeoutMs());
+
         Auction result = queryFactory
                 .selectFrom(auction)
                 .where(auction.auctionId.eq(auctionId))
@@ -34,6 +40,12 @@ public class AuctionCloseRepositoryImpl implements AuctionCloseRepositoryCustom 
                 .fetchOne();
 
         return Optional.ofNullable(result);
+    }
+
+
+    private void applyLocalLockTimeout(int lockTimeoutMs) {
+        int sanitized = Math.max(lockTimeoutMs, 0);
+        entityManager.createNativeQuery("SET LOCAL lock_timeout = '" + sanitized + "ms'").executeUpdate();
     }
 
     // 특정 상태의 경매들의 ID와 endAt 조회

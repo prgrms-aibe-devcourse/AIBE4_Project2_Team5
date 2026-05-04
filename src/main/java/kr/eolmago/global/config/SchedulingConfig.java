@@ -1,5 +1,7 @@
 package kr.eolmago.global.config;
 
+import kr.eolmago.global.config.properties.AuctionRuntimeProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -9,15 +11,17 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 @EnableScheduling
+@EnableConfigurationProperties(AuctionRuntimeProperties.class)
 public class SchedulingConfig {
+
     @Primary
     @Bean
-    public TaskScheduler taskScheduler() {
+    public TaskScheduler taskScheduler(AuctionRuntimeProperties properties) {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(10);
-        scheduler.setThreadNamePrefix("auction-close-");
+        scheduler.setPoolSize(properties.getScheduler().getPoolSize());
+        scheduler.setThreadNamePrefix(properties.getScheduler().getThreadNamePrefix());
         scheduler.setWaitForTasksToCompleteOnShutdown(true);
-        scheduler.setAwaitTerminationSeconds(30);
+        scheduler.setAwaitTerminationSeconds(properties.getScheduler().getAwaitTerminationSec());
         scheduler.initialize();
         return scheduler;
     }

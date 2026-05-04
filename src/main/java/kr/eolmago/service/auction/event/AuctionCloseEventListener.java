@@ -12,7 +12,8 @@ public class AuctionCloseEventListener {
 
     private final AuctionCloseScheduler auctionCloseScheduler;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+     // 경매 종료 시각 변경 이벤트는 DB 커밋이 끝난 뒤에만 스케줄러에 반영
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAuctionEndAtChanged(AuctionEndAtChangedEvent event) {
         if (event == null || event.auctionId() == null || event.endAt() == null) {
             return;
