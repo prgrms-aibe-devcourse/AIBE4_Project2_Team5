@@ -10,7 +10,14 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "search_keywords")
+@Table(
+        name = "search_keywords",
+        indexes = {
+                @Index(name = "idx_search_keywords_keyword", columnList = "keyword", unique = true),
+                @Index(name = "idx_search_count", columnList = "search_count DESC"),
+                @Index(name = "idx_keyword_type", columnList = "keyword_type, search_count DESC")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SearchKeyword extends CreatedAtEntity {

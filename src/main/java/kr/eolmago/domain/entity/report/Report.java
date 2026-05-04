@@ -15,7 +15,13 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "reports")
+@Table(
+        name = "reports",
+        indexes = {
+                @Index(name = "idx_reports_status_created", columnList = "status,created_at"),
+                @Index(name = "idx_reports_reporter_created", columnList = "reporter_id,created_at")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Report extends AuditableEntity {

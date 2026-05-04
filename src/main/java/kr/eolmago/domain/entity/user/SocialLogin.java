@@ -8,7 +8,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "social_login")
+@Table(
+        name = "social_login",
+        indexes = {
+                @Index(name = "idx_social_login_provider_pid", columnList = "provider,provider_id", unique = true)
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SocialLogin extends CreatedAtEntity {

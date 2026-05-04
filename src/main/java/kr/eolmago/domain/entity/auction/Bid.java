@@ -8,7 +8,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "bids")
+@Table(
+        name = "bids",
+        indexes = {
+                @Index(name = "idx_bids_auction_created", columnList = "auction_id,created_at"),
+                @Index(name = "idx_bids_bidder", columnList = "bidder_id")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Bid extends CreatedAtEntity {
