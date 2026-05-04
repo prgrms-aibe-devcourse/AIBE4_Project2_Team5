@@ -13,7 +13,13 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "auctions")
+@Table(
+        name = "auctions",
+        indexes = {
+                @Index(name = "idx_auctions_status_end_at", columnList = "status,end_at"),
+                @Index(name = "idx_auctions_seller", columnList = "seller_id")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Auction extends CreatedAtEntity {

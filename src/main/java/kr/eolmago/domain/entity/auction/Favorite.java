@@ -8,7 +8,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "favorites")
+@Table(
+        name = "favorites",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_favorites_user_auction",
+                        columnNames = {"user_id", "auction_id"}
+                )
+        },
+        indexes = {
+                @Index(name = "idx_favorites_user_created", columnList = "user_id,created_at"),
+                @Index(name = "idx_favorites_auction", columnList = "auction_id")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Favorite extends CreatedAtEntity {
