@@ -1,0 +1,76 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Redis 비활성화
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 1s
+      lettuce:
+        shutdown-timeout: 0ms
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+
+jwt:
+  secret: test-secret-key-for-testing-purposes-only-minimum-256-bits-required-here
+  access-token-expiry: 3600000
+  refresh-token-expiry: 86400000
+
+# Supabase - 테스트용 더미
+supabase:
+  url: https://test.supabase.co
+  anon-key: test-anon-key
+  service-role-key: test-service-key
+  bucket: test-bucket
+
+# Coolsms - 테스트용 더미
+coolsms:
+  apiKey: test-api-key
+  secretkey: test-secret-key
+  from:
+    number: '01000000000'
+
+chat:
+  notification-bot-user-id: 00000000-0000-0000-0000-000000000001
+
+logging:
+  level:
+    root: WARN
+    kr.eolmago: INFO
+    org.hibernate.SQL: WARN
+    org.testcontainers: INFO
+
+
+auction:
+  runtime:
+    bid:
+      lock-timeout-ms: 100
+      transaction-timeout-sec: 3
+    close:
+      lock-timeout-ms: 200
+      transaction-timeout-sec: 5
+    scheduler:
+      pool-size: 2
+      thread-name-prefix: test-auction-close-
+      await-termination-sec: 5
+      sweep-delay-ms: 60000
+      sweep-batch-size: 100
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
