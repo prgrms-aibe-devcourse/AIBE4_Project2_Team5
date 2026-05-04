@@ -4,7 +4,7 @@ import kr.eolmago.domain.entity.auction.enums.AuctionStatus;
 import kr.eolmago.dto.view.auction.AuctionEndAtView;
 import kr.eolmago.global.config.properties.AuctionRuntimeProperties;
 import kr.eolmago.repository.auction.AuctionCloseRepository;
-import kr.eolmago.service.auction.metrics.AuctionCloseMetricsRecorder;
+import kr.eolmago.service.auction.monitoring.AuctionCloseMetricsRecorder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
