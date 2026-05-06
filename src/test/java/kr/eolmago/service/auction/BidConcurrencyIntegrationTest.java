@@ -70,6 +70,12 @@ class BidConcurrencyIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+
+        // HikariCP 커넥션 풀 설정
+        registry.add("spring.datasource.hikari.maximum-pool-size", () -> 60);
+        registry.add("spring.datasource.hikari.minimum-idle", () -> 10);
+        registry.add("spring.datasource.hikari.connection-timeout", () -> 5000);
+
         // Redis 비활성화
         registry.add("spring.data.redis.host", () -> "localhost");
         registry.add("spring.data.redis.port", () -> "6379");
@@ -134,6 +140,7 @@ class BidConcurrencyIntegrationTest {
             AtomicInteger invalidAmountCount = new AtomicInteger(0);
             AtomicInteger otherErrorCount = new AtomicInteger(0);
             ConcurrentLinkedQueue<BidResult> results = new ConcurrentLinkedQueue<>();
+            ConcurrentLinkedQueue<String> unexpectedErrors = new ConcurrentLinkedQueue<>();
 
             // When: 100개 요청을 거의 동시에 시작
             for (int i = 0; i < CONCURRENT_REQUESTS_SINGLE_AUCTION; i++) {
@@ -166,9 +173,16 @@ class BidConcurrencyIntegrationTest {
                         } else if (code == ErrorCode.BID_INVALID_AMOUNT) {
                             invalidAmountCount.incrementAndGet();
                         } else {
+                            String errorMsg = "BusinessException: " + code + " - " + e.getMessage();
+                            System.err.println("Unexpected " + errorMsg);
+                            unexpectedErrors.add(errorMsg);
                             otherErrorCount.incrementAndGet();
                         }
                     } catch (Exception e) {
+                        String errorMsg = e.getClass().getName() + " - " + e.getMessage();
+                        System.err.println("Unexpected Exception: " + errorMsg);
+                        unexpectedErrors.add(errorMsg);
+                        e.printStackTrace();
                         otherErrorCount.incrementAndGet();
                         results.add(new BidResult(bidderIndex, bidAmount, false, null));
                     } finally {
@@ -208,11 +222,18 @@ class BidConcurrencyIntegrationTest {
                 assertThat(bid.getAmount()).isGreaterThanOrEqualTo(START_PRICE + BID_INCREMENT);
             });
 
-            // 테스트가 모르는 예외는 정합성 검증 대상에서 제외하지 않는다.
-            // 예상 가능한 실패는 lock busy 또는 금액 검증 실패로만 제한한다.
-            assertThat(otherErrorCount.get()).isZero();
+            System.out.println("=== 최종 에러 카운트 ===");
+            System.out.println("otherErrorCount: " + otherErrorCount.get());
+            System.out.println("lockBusyCount: " + lockBusyCount.get());
+            System.out.println("invalidAmountCount: " + invalidAmountCount.get());
+            if (otherErrorCount.get() > 0) {
+                System.out.println("=== Unexpected Errors ===");
+                unexpectedErrors.forEach(err -> System.out.println("  - " + err));
+            }
+            assertThat(otherErrorCount.get())
+                    .withFailMessage("Unexpected errors occurred: " + unexpectedErrors)
+                    .isZero();
 
-            // 실패한 요청은 성공 데이터에 영향을 주지 않아야 한다.
             long failedRequestCount = results.stream().filter(result -> !result.success()).count();
             assertThat(failedRequestCount).isEqualTo(lockBusyCount.get() + invalidAmountCount.get());
 
@@ -244,6 +265,7 @@ class BidConcurrencyIntegrationTest {
             AtomicInteger lockBusyCount = new AtomicInteger(0);
             AtomicInteger conflictCount = new AtomicInteger(0);
             AtomicInteger unexpectedErrorCount = new AtomicInteger(0);
+            ConcurrentLinkedQueue<String> unexpectedErrors = new ConcurrentLinkedQueue<>();
 
             // When: 같은 유저가 같은 requestId로 동시에 여러 번 요청
             for (int i = 0; i < concurrentRequests; i++) {
@@ -259,9 +281,16 @@ class BidConcurrencyIntegrationTest {
                         } else if (e.getErrorCode() == ErrorCode.AUCTION_LOCK_BUSY) {
                             lockBusyCount.incrementAndGet();
                         } else {
+                            String errorMsg = "BusinessException: " + e.getErrorCode() + " - " + e.getMessage();
+                            System.err.println("Unexpected " + errorMsg);
+                            unexpectedErrors.add(errorMsg);
                             unexpectedErrorCount.incrementAndGet();
                         }
                     } catch (Exception e) {
+                        String errorMsg = e.getClass().getName() + " - " + e.getMessage();
+                        System.err.println("Unexpected Exception: " + errorMsg);
+                        unexpectedErrors.add(errorMsg);
+                        e.printStackTrace();
                         unexpectedErrorCount.incrementAndGet();
                     } finally {
                         doneLatch.countDown();
@@ -281,7 +310,13 @@ class BidConcurrencyIntegrationTest {
             assertThat(bids).hasSize(1);
             assertThat(bids.get(0).getAmount()).isEqualTo(bidAmount);
             assertThat(bids.get(0).getClientRequestId()).isEqualTo(sharedClientRequestId);
-            assertThat(unexpectedErrorCount.get()).isZero();
+            if (unexpectedErrorCount.get() > 0) {
+                System.out.println("=== Idempotency Test Unexpected Errors ===");
+                unexpectedErrors.forEach(err -> System.out.println("  - " + err));
+            }
+            assertThat(unexpectedErrorCount.get())
+                    .withFailMessage("Unexpected errors occurred: " + unexpectedErrors)
+                    .isZero();
             assertThat(successCount.get() + conflictCount.get() + lockBusyCount.get()).isEqualTo(concurrentRequests);
         }
 
@@ -369,6 +404,7 @@ class BidConcurrencyIntegrationTest {
             Map<UUID, AtomicInteger> successCounts = new ConcurrentHashMap<>();
             Map<UUID, AtomicInteger> expectedFailureCounts = new ConcurrentHashMap<>();
             AtomicInteger unexpectedErrorCount = new AtomicInteger(0);
+            ConcurrentLinkedQueue<String> unexpectedErrors = new ConcurrentLinkedQueue<>();
             auctions.forEach(a -> {
                 successCounts.put(a.getAuctionId(), new AtomicInteger(0));
                 expectedFailureCounts.put(a.getAuctionId(), new AtomicInteger(0));
@@ -395,9 +431,16 @@ class BidConcurrencyIntegrationTest {
                                     || e.getErrorCode() == ErrorCode.BID_INVALID_AMOUNT) {
                                 expectedFailureCounts.get(auction.getAuctionId()).incrementAndGet();
                             } else {
+                                String errorMsg = "BusinessException: " + e.getErrorCode() + " - " + e.getMessage();
+                                System.err.println("Unexpected " + errorMsg + " in multi-auction test");
+                                unexpectedErrors.add(errorMsg);
                                 unexpectedErrorCount.incrementAndGet();
                             }
                         } catch (Exception e) {
+                            String errorMsg = e.getClass().getName() + " - " + e.getMessage();
+                            System.err.println("Unexpected Exception in multi-auction test: " + errorMsg);
+                            unexpectedErrors.add(errorMsg);
+                            e.printStackTrace();
                             unexpectedErrorCount.incrementAndGet();
                         } finally {
                             doneLatch.countDown();
@@ -437,7 +480,13 @@ class BidConcurrencyIntegrationTest {
             // 전체 성공 수가 0이 아니어야 함
             int totalSuccess = successCounts.values().stream().mapToInt(AtomicInteger::get).sum();
             assertThat(totalSuccess).isGreaterThan(0);
-            assertThat(unexpectedErrorCount.get()).isZero();
+            if (unexpectedErrorCount.get() > 0) {
+                System.out.println("=== Multi-Auction Test Unexpected Errors ===");
+                unexpectedErrors.forEach(err -> System.out.println("  - " + err));
+            }
+            assertThat(unexpectedErrorCount.get())
+                    .withFailMessage("Unexpected errors occurred: " + unexpectedErrors)
+                    .isZero();
         }
     }
 
@@ -480,9 +529,12 @@ class BidConcurrencyIntegrationTest {
                     } catch (BusinessException e) {
                         if (e.getErrorCode() != ErrorCode.AUCTION_LOCK_BUSY
                                 && e.getErrorCode() != ErrorCode.BID_INVALID_AMOUNT) {
+                            System.err.println("Unexpected BusinessException in auto-extension test: " + e.getErrorCode() + " - " + e.getMessage());
                             unexpectedErrorCount.incrementAndGet();
                         }
                     } catch (Exception e) {
+                        System.err.println("Unexpected Exception in auto-extension test: " + e.getClass().getName() + " - " + e.getMessage());
+                        e.printStackTrace();
                         unexpectedErrorCount.incrementAndGet();
                     } finally {
                         doneLatch.countDown();

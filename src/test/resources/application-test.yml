@@ -7,6 +7,15 @@ spring:
       hibernate:
         format_sql: false
 
+  # 동시성 테스트를 위한 DB 커넥션 풀 설정
+  datasource:
+    hikari:
+      maximum-pool-size: 60
+      minimum-idle: 10
+      connection-timeout: 5000  # 5초
+      idle-timeout: 30000  # 30초
+      max-lifetime: 60000  # 60초
+
   # Redis 비활성화
   data:
     redis:
