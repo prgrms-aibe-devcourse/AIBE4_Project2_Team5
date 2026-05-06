@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
         indexes = {
                 @Index(name = "idx_bids_auction_created", columnList = "auction_id,created_at"),
                 @Index(name = "idx_bids_bidder", columnList = "bidder_id")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_bids_bidder_request", columnNames = {"bidder_id", "client_request_id"})
         }
 )
 @Getter

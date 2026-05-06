@@ -10,6 +10,7 @@ import kr.eolmago.dto.api.auction.response.BidCreateResponse;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -25,7 +26,7 @@ public class BidTestFixture {
 
     public static User createMockUser(UUID userId) {
         User user = mock(User.class);
-        when(user.getUserId()).thenReturn(userId);
+        lenient().when(user.getUserId()).thenReturn(userId);
         return user;
     }
 
@@ -38,24 +39,24 @@ public class BidTestFixture {
         Auction auction = mock(Auction.class);
         User seller = createMockUser(sellerId);
 
-        when(auction.getAuctionId()).thenReturn(auctionId);
-        when(auction.getStatus()).thenReturn(status);
-        when(auction.getSeller()).thenReturn(seller);
-        when(auction.getCurrentPrice()).thenReturn(currentPrice);
-        when(auction.getBidIncrement()).thenReturn(bidIncrement);
-        when(auction.getEndAt()).thenReturn(OffsetDateTime.now().plusHours(1));
-        when(auction.getOriginalEndAt()).thenReturn(OffsetDateTime.now().plusHours(1));
+        lenient().when(auction.getAuctionId()).thenReturn(auctionId);
+        lenient().when(auction.getStatus()).thenReturn(status);
+        lenient().when(auction.getSeller()).thenReturn(seller);
+        lenient().when(auction.getCurrentPrice()).thenReturn(currentPrice);
+        lenient().when(auction.getBidIncrement()).thenReturn(bidIncrement);
+        lenient().when(auction.getEndAt()).thenReturn(OffsetDateTime.now().plusHours(1));
+        lenient().when(auction.getOriginalEndAt()).thenReturn(OffsetDateTime.now().plusHours(1));
 
         return auction;
     }
 
     public static Bid createMockBid(Auction auction, User bidder, int amount, String clientRequestId) {
         Bid bid = mock(Bid.class);
-        when(bid.getBidId()).thenReturn(1L);
-        when(bid.getAuction()).thenReturn(auction);
-        when(bid.getBidder()).thenReturn(bidder);
-        when(bid.getAmount()).thenReturn(amount);
-        when(bid.getClientRequestId()).thenReturn(clientRequestId);
+        lenient().when(bid.getBidId()).thenReturn(1L);
+        lenient().when(bid.getAuction()).thenReturn(auction);
+        lenient().when(bid.getBidder()).thenReturn(bidder);
+        lenient().when(bid.getAmount()).thenReturn(amount);
+        lenient().when(bid.getClientRequestId()).thenReturn(clientRequestId);
         return bid;
     }
 

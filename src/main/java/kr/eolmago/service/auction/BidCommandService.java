@@ -103,7 +103,28 @@ public class BidCommandService {
                     throw e;
                 }
 
-                // 락을 잡은 후 입찰 비즈니스 검증
+                // 락 획득 후 멱등성 재확인
+                Optional<Bid> existingAfterLock = bidRepository.findByClientRequestIdAndBidderId(requestId, buyerId);
+                if (existingAfterLock.isPresent()) {
+                    Bid bid = existingAfterLock.get();
+
+                    if (bid.getAmount() != amount) {
+                        if ("unknown".equals(trace.outcome)) {
+                            trace.outcome = "idempotency_conflict";
+                        }
+                        throw new BusinessException(ErrorCode.BID_IDEMPOTENCY_CONFLICT);
+                    }
+
+                    if ("unknown".equals(trace.outcome)) {
+                        trace.outcome = "idempotency_replay";
+                    }
+
+                    UUID hBidderId = bidRepository.findTopBidderIdByAuction(auction).orElse(null);
+                    BidCreateResponse res = BidCreateResponse.from(auction, bid, false, hBidderId);
+                    trace.captureResponse(res);
+                    return res;
+                }
+
                 // 입찰자 검증
                 if (auction.getStatus() != AuctionStatus.LIVE) {
                     throw new BusinessException(ErrorCode.AUCTION_NOT_LIVE);
@@ -280,12 +301,15 @@ public class BidCommandService {
             throw e;
 
         } catch (DataIntegrityViolationException e) {
+            // unique constraint (bidder_id, client_request_id) 위반 처리
+            // DB가 중복을 감지했으므로, 조회 성공 여부와 관계없이 멱등성 처리 필요
 
             Optional<Bid> existing = bidRepository.findByClientRequestIdAndBidderId(requestId, buyerId);
             if (existing.isPresent()) {
                 Bid bid = existing.get();
 
                 if (bid.getAmount() != amount) {
+                    // 같은 requestId인데 금액이 다름 = 충돌
                     if ("unknown".equals(trace.outcome)) {
                         trace.outcome = "idempotency_conflict";
                     }
@@ -293,6 +317,7 @@ public class BidCommandService {
                     throw new BusinessException(ErrorCode.BID_IDEMPOTENCY_CONFLICT);
                 }
 
+                // 같은 requestId, 같은 금액 = 정상적인 재시도
                 if ("unknown".equals(trace.outcome)) {
                     trace.outcome = "idempotency_replay";
                 }
@@ -304,11 +329,14 @@ public class BidCommandService {
                 return resolved;
             }
 
+            // 조회 실패했지만 constraint 위반 발생 = 다른 트랜잭션이 처리 중
+            // READ_COMMITTED 격리 수준에서 커밋 전이라 조회 안 되는 것은 정상
+            // 클라이언트에게는 "중복 요청이므로 재시도하라"는 신호를 보냄
             if ("unknown".equals(trace.outcome)) {
-                trace.outcome = "business_error";
+                trace.outcome = "idempotency_conflict";
             }
             trace.error = e;
-            throw e;
+            throw new BusinessException(ErrorCode.BID_IDEMPOTENCY_CONFLICT);
 
         } catch (RuntimeException e) {
 

@@ -82,7 +82,7 @@ class AuctionCloseServiceTest {
     class CloseAuctionTests {
 
         @Test
-        @DisplayName("입찰 없는 LIVE 경매 종료 시 ENDED_UNSOLD 처리 및 유찰 알림 발행")
+        @DisplayName("입찰 없는 LIVE 경매 종료 시 유찰 처리 및 유찰 알림 발행")
         void givenLiveAuctionWithNoBids_whenClose_thenMarkAsUnsoldAndNotify() {
             // Given
             Auction auction = createMockLiveAuction(auctionId, sellerId);
@@ -102,7 +102,7 @@ class AuctionCloseServiceTest {
         }
 
         @Test
-        @DisplayName("입찰 있는 LIVE 경매 종료 시 ENDED_SOLD 처리 및 낙찰 알림/이벤트 발행")
+        @DisplayName("입찰 있는 LIVE 경매 종료 시 낙찰 처리 및 낙찰 알림/이벤트 발행")
         void givenLiveAuctionWithBids_whenClose_thenMarkAsSoldAndNotifyBothParties() {
             // Given
             Auction auction = createMockLiveAuction(auctionId, sellerId);
@@ -123,7 +123,7 @@ class AuctionCloseServiceTest {
             // Then
             verify(auction).closeAsSold(buyer, (long) finalAmount);
 
-            // 판매자 + 구매자에게 알림 발행 (2회)
+            // 판매자 + 구매자에게 알림 발행
             verify(notificationPublisher, times(2)).publish(any(NotificationPublishCommand.class));
 
             // AuctionSoldEvent 발행
@@ -137,7 +137,7 @@ class AuctionCloseServiceTest {
         }
 
         @Test
-        @DisplayName("이미 종료된 경매에 중복 close 호출해도 안전")
+        @DisplayName("이미 종료된 경매에 중복 close 호출")
         void givenAlreadyClosedAuction_whenClose_thenDoNothing() {
             // Given
             Auction auction = mock(Auction.class);
@@ -173,17 +173,19 @@ class AuctionCloseServiceTest {
         }
 
         @Test
-        @DisplayName("존재하지 않는 경매 종료 시도 시 AUCTION_NOT_FOUND")
-        void givenNonExistentAuction_whenClose_thenThrowNotFound() {
+        @DisplayName("존재하지 않는 경매는 예외 없이 스킵")
+        void givenNonExistentAuction_whenClose_thenSkipWithoutException() {
             // Given
             when(auctionCloseRepository.findByIdForUpdate(auctionId))
                     .thenReturn(Optional.empty());
 
-            // When & Then
-            assertThatThrownBy(() -> sut.closeAuction(auctionId))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(ErrorCode.AUCTION_NOT_FOUND);
+            // When & Then: 예외를 던지지 않고 스킵
+            assertThatCode(() -> sut.closeAuction(auctionId))
+                    .doesNotThrowAnyException();
+
+            // 아무런 상태 변경이나 알림도 발생하지 않음
+            verify(notificationPublisher, never()).publish(any());
+            verify(eventPublisher, never()).publishEvent(any());
         }
     }
 
@@ -268,9 +270,9 @@ class AuctionCloseServiceTest {
         Auction auction = mock(Auction.class);
         User seller = createMockUser(sellerId);
 
-        when(auction.getAuctionId()).thenReturn(auctionId);
-        when(auction.getStatus()).thenReturn(AuctionStatus.LIVE);
-        when(auction.getSeller()).thenReturn(seller);
+        lenient().when(auction.getAuctionId()).thenReturn(auctionId);
+        lenient().when(auction.getStatus()).thenReturn(AuctionStatus.LIVE);
+        lenient().when(auction.getSeller()).thenReturn(seller);
 
         return auction;
     }

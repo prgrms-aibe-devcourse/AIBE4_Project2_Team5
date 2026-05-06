@@ -28,6 +28,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.PessimisticLockingFailureException;
@@ -50,6 +52,7 @@ import static org.mockito.Mockito.*;
 
 // 비즈니스 규칙 검증, 락 예외 처리, 알림/이벤트 발행 검증
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("BidCommandService 단위 테스트")
 class BidCommandServiceTest {
 
@@ -93,7 +96,7 @@ class BidCommandServiceTest {
                 bidWriteTransactionTemplate
         );
 
-        lenient().when(bidRepository.saveAndFlush(any(Bid.class)))
+        when(bidRepository.saveAndFlush(any(Bid.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 

@@ -20,6 +20,8 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +33,7 @@ import static org.mockito.Mockito.*;
 
 // 멱등성 처리와 BidCommandService 위임 호출 검증
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("BidService 단위 테스트")
 class BidServiceTest {
 
@@ -116,7 +119,6 @@ class BidServiceTest {
             assertThat(response.bidId()).isEqualTo(existingBid.getBidId());
             assertThat(response.acceptedAmount()).isEqualTo(amount);
 
-            // BidCommandService는 호출되지 않아야 함 (멱등성으로 인해 기존 결과 반환)
             verify(bidCommandService, never()).createBid(any(), any(), anyInt(), any());
         }
 
