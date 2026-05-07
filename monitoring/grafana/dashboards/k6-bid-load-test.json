@@ -1,6 +1,6 @@
 {
   "uid": "k6-bid-load-test",
-  "title": "06. k6 Bid Load Test vs App Metrics",
+  "title": "k6 Bid Load Test vs App Metrics",
   "tags": [
     "auction",
     "k6",
@@ -12,7 +12,7 @@
   "version": 1,
   "refresh": "5s",
   "time": {
-    "from": "now-15m",
+    "from": "now-1h",
     "to": "now"
   },
   "templating": {
@@ -108,8 +108,8 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "k6 HTTP Duration p95/p99",
-      "description": "K6_PROMETHEUS_RW_TREND_STATS에 p(95), p(99)가 포함되어 있어야 표시됩니다.",
+      "title": "k6 Client HTTP Duration p95/p99 (ms)",
+      "description": "k6 remote-write duration 값을 ms 단위로 변환해 표시합니다. 클라이언트 관점 지표이므로 네트워크/클라이언트 영향이 포함되며, 서버 내부 처리 시간은 App Bid Duration p95/p99 패널을 기준으로 봅니다.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -139,7 +139,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "avg(k6_http_req_duration_p95{scenario=~\"$scenario\",testid=~\"$testid\"})",
+          "expr": "avg(k6_http_req_duration_p95{scenario=~\"$scenario\",testid=~\"$testid\"}) * 1000",
           "legendFormat": "k6 http p95",
           "refId": "A"
         },
@@ -148,7 +148,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "avg(k6_http_req_duration_p99{scenario=~\"$scenario\",testid=~\"$testid\"})",
+          "expr": "avg(k6_http_req_duration_p99{scenario=~\"$scenario\",testid=~\"$testid\"}) * 1000",
           "legendFormat": "k6 http p99",
           "refId": "B"
         }
@@ -158,7 +158,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "App Bid Duration p95/p99",
-      "description": "HTTP 진입부터 응답까지의 서버 내부 입찰 처리 시간입니다.",
+      "description": "애플리케이션 내부 auction_bid_duration_seconds_bucket 기준 p95/p99입니다. k6 클라이언트 지연과 분리해서 봅니다.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -263,8 +263,8 @@
     },
     {
       "id": 5,
-      "type": "barchart",
-      "title": "k6 Bid Outcome",
+      "type": "timeseries",
+      "title": "k6 Bid Outcome Rate",
       "description": "k6가 응답 status와 error code를 기준으로 분류한 입찰 결과입니다.",
       "gridPos": {
         "h": 8,
@@ -274,7 +274,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -295,7 +295,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (outcome) (increase(k6_bid_outcome_total{scenario=~\"$scenario\",testid=~\"$testid\"}[5m]))",
+          "expr": "sum by (outcome) (rate(k6_bid_outcome_total{scenario=~\"$scenario\",testid=~\"$testid\"}[1m]))",
           "legendFormat": "{{outcome}}",
           "refId": "A"
         }
@@ -303,8 +303,8 @@
     },
     {
       "id": 6,
-      "type": "barchart",
-      "title": "App Bid Outcome",
+      "type": "timeseries",
+      "title": "App Bid Outcome Rate",
       "description": "서버가 Micrometer로 기록한 실제 비즈니스 outcome입니다.",
       "gridPos": {
         "h": 8,
@@ -314,7 +314,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -335,7 +335,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (outcome) (increase(auction_bid_outcome_total[5m]))",
+          "expr": "sum by (outcome) (rate(auction_bid_outcome_total[1m]))",
           "legendFormat": "{{outcome}}",
           "refId": "A"
         }
@@ -375,7 +375,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[5m])) / clamp_min(sum(rate(auction_bid_request_total[5m])), 0.0001)",
+          "expr": "100 * (sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[5m])) or vector(0)) / clamp_min((sum(rate(auction_bid_request_total[5m])) or vector(0)), 0.0001)",
           "legendFormat": "app lock busy %",
           "refId": "A"
         },
@@ -384,7 +384,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * sum(rate(k6_bid_lock_busy_total{scenario=~\"$scenario\",testid=~\"$testid\"}[5m])) / clamp_min(sum(rate(k6_bid_attempts_total{scenario=~\"$scenario\",testid=~\"$testid\"}[5m])), 0.0001)",
+          "expr": "100 * (sum(rate(k6_bid_lock_busy_total{scenario=~\"$scenario\",testid=~\"$testid\"}[5m])) or vector(0)) / clamp_min((sum(rate(k6_bid_attempts_total{scenario=~\"$scenario\",testid=~\"$testid\"}[5m])) or vector(0)), 0.0001)",
           "legendFormat": "k6 lock busy %",
           "refId": "B"
         }

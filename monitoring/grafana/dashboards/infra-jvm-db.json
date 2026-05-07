@@ -50,7 +50,7 @@
     },
     {
       "id": 2,
-      "title": "Heap %",
+      "title": "Heap Committed %",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -64,7 +64,10 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent"
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 2
         },
         "overrides": []
       },
@@ -84,10 +87,12 @@
       },
       "targets": [
         {
-          "expr": "100 * jvm_memory_used_bytes{area=\"heap\"} / clamp_min(jvm_memory_max_bytes{area=\"heap\"}, 1)",
-          "refId": "A"
+          "expr": "100 * sum(jvm_memory_used_bytes{area=\"heap\"}) / clamp_min(sum(jvm_memory_committed_bytes{area=\"heap\"}), 1)",
+          "refId": "A",
+          "legendFormat": "heap committed used %"
         }
-      ]
+      ],
+      "description": "JVM committed heap 대비 used heap 비율입니다. max가 정의되지 않은 메모리 풀 때문에 비정상적인 %가 나오는 문제를 피합니다."
     },
     {
       "id": 3,
@@ -116,7 +121,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -128,7 +135,8 @@
           "expr": "hikaricp_connections_active",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 4,
@@ -146,7 +154,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -157,7 +181,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -169,7 +195,8 @@
           "expr": "hikaricp_connections_pending",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 5,
@@ -255,7 +282,7 @@
     },
     {
       "id": 7,
-      "title": "CPU / Heap %",
+      "title": "CPU / Heap Committed %",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -269,7 +296,10 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent"
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 2
         },
         "overrides": []
       },
@@ -291,11 +321,12 @@
           "refId": "A"
         },
         {
-          "expr": "100 * jvm_memory_used_bytes{area=\"heap\"} / clamp_min(jvm_memory_max_bytes{area=\"heap\"}, 1)",
-          "legendFormat": "heap %",
+          "expr": "100 * sum(jvm_memory_used_bytes{area=\"heap\"}) / clamp_min(sum(jvm_memory_committed_bytes{area=\"heap\"}), 1)",
+          "legendFormat": "heap committed %",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "CPU 사용률과 committed heap 대비 used heap 비율입니다."
     },
     {
       "id": 8,
@@ -315,7 +346,40 @@
         "defaults": {
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pending"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 10
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -344,7 +408,8 @@
           "legendFormat": "pending",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "Hikari pending은 DB 커넥션을 얻지 못해 대기 중인 요청 수입니다. 1 이상이면 주의, 10 이상이면 병목 후보로 봅니다."
     },
     {
       "id": 9,
@@ -423,8 +488,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{uri=~\"/api/auctions/.*/bids|/api/auctions/\\{auctionId\\}/bids\"}[5m])) by (le)) * 1000",
-          "legendFormat": "http p95",
+          "expr": "histogram_quantile(0.95, sum(rate(auction_bid_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "bid p95",
           "refId": "A"
         },
         {

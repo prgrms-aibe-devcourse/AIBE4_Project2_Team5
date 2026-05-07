@@ -9,7 +9,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Req/s",
+      "title": "Req/s (Current / Max / Avg)",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -34,7 +34,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -46,11 +48,12 @@
           "expr": "sum(rate(auction_bid_request_total[1m]))",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 2,
-      "title": "Accepted/s",
+      "title": "Accepted/s (Current / Max / Avg)",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -75,7 +78,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -87,7 +92,8 @@
           "expr": "sum(rate(auction_bid_outcome_total{outcome=~\"accepted|accepted_extended\"}[1m]))",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 3,
@@ -105,7 +111,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent"
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -125,7 +147,7 @@
       },
       "targets": [
         {
-          "expr": "100 * sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[5m])) / clamp_min(sum(rate(auction_bid_request_total[5m])), 0.0001)",
+          "expr": "100 * (sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[5m])) or vector(0)) / clamp_min((sum(rate(auction_bid_request_total[5m])) or vector(0)), 0.0001)",
           "refId": "A"
         }
       ]
@@ -146,7 +168,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -187,7 +225,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -269,7 +323,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -378,7 +448,7 @@
           "refId": "B"
         },
         {
-          "expr": "sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[1m]))",
+          "expr": "sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[1m])) or vector(0)",
           "legendFormat": "lock_busy",
           "refId": "C"
         }
@@ -435,8 +505,8 @@
     },
     {
       "id": 11,
-      "title": "Bid Outcomes (5m)",
-      "type": "barchart",
+      "title": "Bid Outcome Rate by Outcome",
+      "type": "timeseries",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -448,7 +518,9 @@
         "y": 12
       },
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "unit": "reqps"
+        },
         "overrides": []
       },
       "options": {
@@ -456,14 +528,20 @@
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "expr": "sum by (outcome) (increase(auction_bid_outcome_total[5m]))",
+          "expr": "sum by (outcome) (rate(auction_bid_outcome_total{outcome=~\"$outcome\"}[1m]))",
+          "legendFormat": "{{outcome}}",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "결과 유형별 입찰 처리율입니다. 막대형 5분 증가량보다 시간 흐름과 spike를 읽기 쉽도록 초당 rate 기준으로 표시합니다."
     },
     {
       "id": 12,
@@ -496,6 +574,132 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "id": 13,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "pluginVersion": "11.5.1",
+      "targets": [
+        {
+          "expr": "sort_desc(sum by (outcome) (increase(auction_bid_outcome_total{outcome=~\"$outcome\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bid Outcome Count (selected range)",
+      "type": "table",
+      "description": "선택한 시간 범위에서 outcome별 누적 건수입니다. Time 컬럼은 사후 분석에 불필요하여 숨겼습니다.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "outcome": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "Value": "count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "id": 14,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "pluginVersion": "11.5.1",
+      "targets": [
+        {
+          "expr": "sort_desc(100 * sum by (outcome) (increase(auction_bid_outcome_total{outcome=~\"$outcome\"}[$__range])) / scalar(clamp_min(sum(increase(auction_bid_outcome_total{outcome=~\"$outcome\"}[$__range])), 1)))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bid Outcome Ratio % (selected range)",
+      "type": "table",
+      "description": "선택한 시간 범위에서 outcome별 비율입니다. denominator를 scalar로 변환해 outcome label vector와 정상 계산되도록 수정했습니다.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "outcome": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "Value": "ratio %"
+            }
+          }
+        }
+      ]
     }
   ],
   "refresh": "5s",
@@ -506,7 +710,26 @@
     "observability"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "outcome",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(auction_bid_outcome_total, outcome)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        },
+        "allValue": ".*"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
