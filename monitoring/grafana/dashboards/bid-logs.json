@@ -88,7 +88,8 @@
           "legendFormat": "avg lockHoldMs",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "로그에서 lockWaitMs/lockHoldMs를 unwrap하여 평균을 계산합니다. 메트릭 기반 p95 패널과 함께 확인합니다."
     },
     {
       "id": 3,
@@ -120,7 +121,8 @@
           "queryType": "range",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "전체 입찰 감사 로그입니다. event/phase/outcome은 label로 필터링하고 고카디널리티 값은 JSON field 또는 structured metadata로 확인합니다."
     },
     {
       "id": 4,
@@ -230,7 +232,7 @@
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},

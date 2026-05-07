@@ -23,7 +23,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -50,7 +66,7 @@
     },
     {
       "id": 2,
-      "title": "Lock Timeout/s",
+      "title": "Lock Timeout/s (Current / Max / Avg)",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -75,7 +91,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -84,14 +102,15 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[1m]))",
+          "expr": "sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[1m])) or vector(0)",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 3,
-      "title": "Accepted/s",
+      "title": "Accepted/s (Current / Max / Avg)",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -116,7 +135,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -128,7 +149,8 @@
           "expr": "sum(rate(auction_bid_outcome_total{outcome=~\"accepted|accepted_extended\"}[1m]))",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 4,
@@ -157,7 +179,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -169,11 +193,12 @@
           "expr": "max(auction_bid_request_inflight)",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 5,
-      "title": "Idempotency Hit/s",
+      "title": "Idempotency Hit/s (Current / Max / Avg)",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -198,7 +223,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max",
+            "mean"
           ],
           "fields": "",
           "values": false
@@ -210,7 +237,8 @@
           "expr": "sum(rate(auction_bid_idempotency_lookup_total{result=\"hit\"}[1m]))",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "현재값(last)과 테스트 구간 최대값(max), 평균값(mean)을 함께 보여줍니다."
     },
     {
       "id": 6,
@@ -228,7 +256,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 500
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -248,8 +292,9 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{uri=~\"/api/auctions/.*/bids|/api/auctions/\\{auctionId\\}/bids\"}[5m])) by (le)) * 1000",
-          "refId": "A"
+          "expr": "histogram_quantile(0.95, sum(rate(auction_bid_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "refId": "A",
+          "legendFormat": "bid p95"
         }
       ]
     },
@@ -391,7 +436,7 @@
           "refId": "A"
         },
         {
-          "expr": "sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[1m]))",
+          "expr": "sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[1m])) or vector(0)",
           "legendFormat": "lock_busy",
           "refId": "B"
         },
@@ -472,7 +517,7 @@
           "refId": "A"
         },
         {
-          "expr": "100 * sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[5m])) / clamp_min(sum(rate(auction_bid_request_total[5m])), 0.0001)",
+          "expr": "100 * (sum(rate(auction_bid_outcome_total{outcome=\"lock_busy\"}[5m])) or vector(0)) / clamp_min((sum(rate(auction_bid_request_total[5m])) or vector(0)), 0.0001)",
           "legendFormat": "lock busy %",
           "refId": "B"
         }
@@ -496,7 +541,40 @@
         "defaults": {
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pending"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 10
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -525,7 +603,8 @@
           "legendFormat": "idle",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "Hikari pending은 DB 커넥션을 얻지 못해 대기 중인 요청 수입니다. 1 이상이면 주의, 10 이상이면 병목 후보로 봅니다."
     },
     {
       "id": 13,
@@ -590,6 +669,132 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 15,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "pluginVersion": "11.5.1",
+      "targets": [
+        {
+          "expr": "sort_desc(sum by (outcome) (increase(auction_bid_outcome_total{outcome=~\"$outcome\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bid Outcome Count (selected range)",
+      "type": "table",
+      "description": "선택한 시간 범위에서 outcome별 누적 건수입니다. Time 컬럼은 사후 분석에 불필요하여 숨겼습니다.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "outcome": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "Value": "count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "id": 16,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "pluginVersion": "11.5.1",
+      "targets": [
+        {
+          "expr": "sort_desc(100 * sum by (outcome) (increase(auction_bid_outcome_total{outcome=~\"$outcome\"}[$__range])) / scalar(clamp_min(sum(increase(auction_bid_outcome_total{outcome=~\"$outcome\"}[$__range])), 1)))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bid Outcome Ratio % (selected range)",
+      "type": "table",
+      "description": "선택한 시간 범위에서 outcome별 비율입니다. denominator를 scalar로 변환해 outcome label vector와 정상 계산되도록 수정했습니다.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "outcome": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "Value": "ratio %"
+            }
+          }
+        }
+      ]
     }
   ],
   "refresh": "5s",
@@ -600,10 +805,29 @@
     "observability"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "outcome",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(auction_bid_outcome_total, outcome)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        },
+        "allValue": ".*"
+      }
+    ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},

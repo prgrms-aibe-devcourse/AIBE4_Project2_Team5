@@ -1,76 +1,77 @@
-livedebugging {
-  enabled = true
-}
-
-# 1단계: 로그 파일 매칭
 local.file_match "eolmago_logs" {
-  path_targets = [{
-    "__path__"    = "/var/log/eolmago/*.log",
-    "job"         = "eolmago",
-    "service"     = "eolmago",
-    "application" = "eolmago"
-  }]
+  path_targets = [
+    {
+      "__path__" = "/var/log/eolmago/*.log",
+      "job" = "eolmago",
+      "service" = "eolmago",
+      "application" = "eolmago",
+    },
+  ]
   sync_period = "5s"
 }
 
-# 2단계: 파일을 실시간으로 tail
+// 매칭된 로그 파일을 tail
+// tail_from_end = true 이므로 Alloy 기동 이후 새로 쌓이는 로그부터 수집합니다.
 loki.source.file "eolmago_logs" {
-  targets       = local.file_match.eolmago_logs.targets
-  forward_to    = [loki.process.eolmago_logs.receiver]
+  targets = local.file_match.eolmago_logs.targets
+  forward_to = [loki.process.eolmago_logs.receiver]
   tail_from_end = true
 }
 
-# 3단계: JSON 파싱 + 필드 분류
+// JSON 구조화 로그를 파싱하고, Grafana에서 자주 필터링할 값만 label로 승격
 loki.process "eolmago_logs" {
   stage.json {
     expressions = {
-      "event"                 = "event",
-      "phase"                 = "phase",
-      "outcome"               = "outcome",
-      "auction_id"            = "auctionId",
-      "buyer_id"              = "buyerId",
-      "request_id"            = "requestId",
-      "amount"                = "amount",
-      "total_duration_ms"     = "totalDurationMs",
-      "lock_wait_ms"          = "lockWaitMs",
-      "lock_hold_ms"          = "lockHoldMs",
+      "event" = "event",
+      "phase" = "phase",
+      "outcome" = "outcome",
+      "level" = "level",
+      "auction_id" = "auctionId",
+      "buyer_id" = "buyerId",
+      "request_id" = "requestId",
+      "amount" = "amount",
+      "total_duration_ms" = "totalDurationMs",
+      "lock_wait_ms" = "lockWaitMs",
+      "lock_hold_ms" = "lockHoldMs",
       "transaction_duration_ms" = "transactionDurationMs",
-      "current_highest"       = "currentHighest",
-      "min_acceptable"        = "minAcceptable",
-      "highest_bidder_id"     = "highestBidderId",
-      "extension_applied"     = "extensionApplied"
+      "current_highest" = "currentHighest",
+      "min_acceptable" = "minAcceptable",
+      "highest_bidder_id" = "highestBidderId",
+      "extension_applied" = "extensionApplied",
     }
   }
 
+  // 값 종류가 적고 자주 필터링하는 필드만 label
   stage.labels {
     values = {
-      "event"   = "event",
-      "phase"   = "phase",
-      "outcome" = "outcome"
+      "event" = "event",
+      "phase" = "phase",
+      "outcome" = "outcome",
+      "level" = "level",
     }
   }
 
   stage.structured_metadata {
     values = {
-      "auctionId"             = "auction_id",
-      "buyerId"               = "buyer_id",
-      "requestId"             = "request_id",
-      "amount"                = "amount",
-      "totalDurationMs"       = "total_duration_ms",
-      "lockWaitMs"            = "lock_wait_ms",
-      "lockHoldMs"            = "lock_hold_ms",
+      "auctionId" = "auction_id",
+      "buyerId" = "buyer_id",
+      "requestId" = "request_id",
+      "amount" = "amount",
+      "totalDurationMs" = "total_duration_ms",
+      "lockWaitMs" = "lock_wait_ms",
+      "lockHoldMs" = "lock_hold_ms",
       "transactionDurationMs" = "transaction_duration_ms",
-      "currentHighest"        = "current_highest",
-      "minAcceptable"         = "min_acceptable",
-      "highestBidderId"       = "highest_bidder_id",
-      "extensionApplied"      = "extension_applied"
+      "currentHighest" = "current_highest",
+      "minAcceptable" = "min_acceptable",
+      "highestBidderId" = "highest_bidder_id",
+      "extensionApplied" = "extension_applied",
     }
   }
 
   forward_to = [loki.write.local.receiver]
 }
 
-# 4단계: Loki로 전송
+// 처리한 로그를 Loki로 전송
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
